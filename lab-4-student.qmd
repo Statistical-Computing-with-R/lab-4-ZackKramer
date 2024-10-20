@@ -38,7 +38,7 @@ counties <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytues
 
 **1. Briefly describe the dataset (~ 4 sentences). What information does it contain?**
 
-This dataset represents the median weekly cost of childcare across every county in California. 
+The Childcare Costs dataset provides information on the median weekly prices for childcare across various age groups in California from 2008 to 2018. It includes features such as the study year, age group (infant, toddler, preschool), county, and the median cost of care for each age category. Additionally, the dataset contains demographic information related to the counties, such as median household income.  
 
 ## California Childcare Costs
 
@@ -110,7 +110,8 @@ ca_childcare |>
   group_by(region) |>
   summarize(mmc_infant = median(mc_infant)) |>
   arrange(desc(mmc_infant)) |>
-  slice_tail(n = 1)
+  slice_tail(n = 1) |>
+  select(region)
 
 ```
 
@@ -122,6 +123,36 @@ For 2018, the region with the lowest 'median' full-time median weekly price for 
 
 ```{r}
 #| label: recreate-plot
+#| fig-width: 12
+#| fig-height: 4
+
+ca_childcare |>
+  pivot_longer(cols = mc_infant:mc_preschool,
+               names_to = "age_group",
+               values_to = "mc_all") |>
+  mutate(age_group = recode(age_group, 
+                            mc_infant = "Infant", 
+                            mc_toddler = "Toddler", 
+                            mc_preschool = "Preschool")) |>
+  ggplot(mapping = aes(x = study_year,
+                       y = mc_all,
+                       color = fct_reorder2(.f = region,
+                                            .x = study_year,
+                                            .y = mc_all))) + 
+  geom_point() + 
+  geom_smooth(method = "loess") + 
+  facet_wrap(~factor(age_group, 
+                     levels = c("Infant",
+                                "Toddler",
+                                "Preschool"))) + 
+  theme_bw() + 
+  labs(x = "Study Year",
+       y = "",
+       title = "Weekly Median Price for Center-Based Childcare ($)",
+       color = "California Region") + 
+  scale_x_continuous(breaks = seq(2008, 2018, by = 2)) + 
+  scale_y_continuous(limits = c(100, 500))
+
 
 ```
 
@@ -133,16 +164,31 @@ For 2018, the region with the lowest 'median' full-time median weekly price for 
 ```{r}
 #| label: scatterplot-median-income-vs-childcare-cost
 
+ggplot(data = ca_childcare, mapping = aes(x = mhi_2018,
+                                          y = mc_infant)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  labs(x = "Median Household Income (2018 $)", 
+       y = "",
+       title = "Median Weekly Price for Center-Based Childcare for an Infant ($)") + 
+  theme_bw()
+
+
 ```
 
 **8. Look up the documentation for `lm()` and fit a linear regression model to the relationship shown in your plot above.**
 
 ```{r}
 # complete the code provided
-reg_mod1 <- lm()
+reg_mod1 <- lm(data = ca_childcare, formula = mhi_2018 ~ mc_infant)
 summary(reg_mod1)
 ```
 
 **9. Using the output from `summary()`, write out the estimated regression line (recall: $y = mx + b$).**
 
+y = 283.37x - 14669.86
+
+
 **10. Do you have evidence to conclude there is a relationship between the median household income and the median weekly cost of center-based childcare for infants in California? Cite values from your `summary()` output to support your claim!**
+
+Yes. The coefficient for mc_infant is 283.37, with a highly significant p-value (< 2e-16), indicating that increases in childcare costs are associated with increases in income. The model accounts for 63.5% of the variability in median household income (R-squared = 0.635), and the overall model is statistically significant (F-statistic = 1106, p < 2.2e-16). This supports the conclusion that higher childcare costs are linked to higher household incomes.
